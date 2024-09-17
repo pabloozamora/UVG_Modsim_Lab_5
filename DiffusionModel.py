@@ -3,13 +3,19 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 class DiffusionModel:
-    def __init__(self, M, N, T, K):
+    def __init__(self, M, N, T, K, initial_distribution=None):
         self.M = M
         self.N = N
         self.T = T
         self.K = K
-        self.u0 = np.random.rand(M, N)
-        self.u0 /= np.sum(self.u0)
+        
+        # Si se proporciona una distribución inicial, se utiliza, de lo contrario se genera una aleatoria
+        if initial_distribution is not None:
+            self.u0 = initial_distribution
+        else:
+            self.u0 = np.random.rand(M, N)
+            self.u0 /= np.sum(self.u0)  # Normalizar para que la suma sea 1
+        
         self.history = [self.u0]
         
     # Función para actualizar el estado del grid en cada paso de tiempo
@@ -36,6 +42,7 @@ class DiffusionModel:
             self.history.append(u)
         return self.history
     
+    # Función para crear la animación de la simulación
     def animate_simulation(self):
         def animate(i):
             plt.clf()  # Limpiamos el gráfico
@@ -45,22 +52,22 @@ class DiffusionModel:
             
         # Creamos la animación
         fig = plt.figure()
-        ani = animation.FuncAnimation(fig, animate, frames=self.T, interval=1000)
+        ani = animation.FuncAnimation(fig, animate, frames=self.T, interval=100)
         return ani
         
 # Parámetros de la simulación
 M, N = 50, 50  # Tamaño del grid
 T = 100        # Tiempo total de simulación
 K = 0.5        # Parámetro de velocidad de difusión
-u0 = np.random.rand(M, N)  # Distribución inicial aleatoria
-u0 /= np.sum(u0)  # Normalizar para que la suma sea 1
 
-# Creamos una instancia de la clase DiffusionModel
-model = DiffusionModel(M, N, T, K)
-model.u0 = u0  # Asignamos la distribución inicial aleatoria
+# Ejemplo de distribución inicial definida por el usuario (puedes personalizarla)
+initial_distribution = np.zeros((M, N))
+initial_distribution[25, 25] = 1.0  # Coloca toda la sustancia en el centro del grid
+
+# Creamos una instancia de la clase DiffusionModel con la distribución inicial definida
+model = DiffusionModel(M, N, T, K, initial_distribution)
 model.simulate_diffusion()  # Ejecutamos la simulación
 ani = model.animate_simulation()  # Creamos la animación
-
 
 # Mostramos la animación
 plt.show()
