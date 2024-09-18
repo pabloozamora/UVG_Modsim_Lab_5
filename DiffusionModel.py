@@ -3,15 +3,24 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 class DiffusionModel:
-    def __init__(self, M, N, T, K, initial_distribution=None):
+    def __init__(self, M, N, T, K, r=None, s=None, initial_distribution=None):
         self.M = M
         self.N = N
         self.T = T
         self.K = K
+        self.r = r
+        self.s = s
+        self.mask = np.ones((M, N))
+        self.neighbors = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+        
+        # Si se proporcionan r y s, establecer las celdas correspondientes en 0
+        if r is not None and s is not None:
+            self.mask[:r, s:] = 0
         
         # Si se proporciona una distribución inicial, se utiliza, de lo contrario se genera una aleatoria
         if initial_distribution is not None:
             self.u0 = initial_distribution
+            self.u0 /= np.sum(self.u0)  # Normalizar para que la suma sea 1
         else:
             self.u0 = np.random.rand(M, N)
             self.u0 /= np.sum(self.u0)  # Normalizar para que la suma sea 1
@@ -21,17 +30,27 @@ class DiffusionModel:
     # Función para actualizar el estado del grid en cada paso de tiempo
     def diffusion_step(self, u, K, M, N):
         u_new = np.copy(u)  # Crear una copia del grid actual
+        
         # Iterar sobre cada celda y actualizar su valor según la ecuación de difusión
-        for i in range(1, M-1):
-            for j in range(1, N-1):
-                # Sumar los valores de los 8 vecinos
-                neighbors_sum = (
-                    u[i-1, j-1] + u[i-1, j] + u[i-1, j+1] +
-                    u[i, j-1]               + u[i, j+1] +
-                    u[i+1, j-1] + u[i+1, j] + u[i+1, j+1]
-                )
-                # Aplicar la fórmula de difusión
-                u_new[i, j] = (1 - K) * u[i, j] + (K / 8) * neighbors_sum
+        for i in range(0, M):
+            for j in range(0, N):
+                
+                if self.mask[i, j] == 0:
+                    u_new[i, j] = 0
+                    continue
+                
+                # Sumar los valores de los 8 vecinos (asegurarse de no salir de los límites del array)
+                neighbors_sum = 0
+                count = 0
+                for di, dj in self.neighbors:
+                    ni, nj = i + di, j + dj
+                    if 0 <= ni < M and 0 <= nj < N and self.mask[ni, nj] == 1:  # Considera solo celdas activas
+                        neighbors_sum += u[ni, nj]
+                        count += 1
+                        
+                # Aplicar la fórmula completa de difusión para las celdas internas
+                u_new[i, j] = (1 - K) * u[i, j] + (K / count) * neighbors_sum
+        
         return u_new
     
     # Función para simular la difusión en el grid
@@ -50,24 +69,8 @@ class DiffusionModel:
             plt.title(f'Tiempo: {i}')
             plt.colorbar()
             
-        # Creamos la animación
+        # Crear la animación
         fig = plt.figure()
         ani = animation.FuncAnimation(fig, animate, frames=self.T, interval=100)
         return ani
         
-# Parámetros de la simulación
-M, N = 50, 50  # Tamaño del grid
-T = 100        # Tiempo total de simulación
-K = 0.5        # Parámetro de velocidad de difusión
-
-# Ejemplo de distribución inicial definida por el usuario (puedes personalizarla)
-initial_distribution = np.zeros((M, N))
-initial_distribution[25, 25] = 1.0  # Coloca toda la sustancia en el centro del grid
-
-# Creamos una instancia de la clase DiffusionModel con la distribución inicial definida
-model = DiffusionModel(M, N, T, K, initial_distribution)
-model.simulate_diffusion()  # Ejecutamos la simulación
-ani = model.animate_simulation()  # Creamos la animación
-
-# Mostramos la animación
-plt.show()
